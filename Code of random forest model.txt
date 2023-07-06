@@ -1,0 +1,432 @@
+import numpy as np 
+import pandas as pd
+import os
+for dirname, _, filenames in os.walk('/kaggle/input'):
+    for filename in filenames:
+        print(os.path.join(dirname, filename))
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from itertools import cycle
+plt.rcParams['figure.figsize']=(25, 10)
+
+from sklearn.ensemble import RandomForestClassifier 
+from sklearn.metrics import roc_curve, auc
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import label_binarize, LabelEncoder  
+from sklearn.multiclass import OneVsRestClassifier 
+from sklearn.impute import SimpleImputer
+from sklearn.model_selection import cross_val_score 
+from sklearn.metrics import plot_confusion_matrix 
+from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import balanced_accuracy_score
+from sklearn.metrics import f1_score
+from sklearn.metrics import confusion_matrix
+from imblearn.ensemble import BalancedRandomForestClassifier 
+from sklearn.datasets import make_classification
+from sklearn.metrics import make_scorer
+from sklearn.model_selection import GridSearchCV
+
+from scipy import interp
+dataset=pd.read_csv('/kaggle/input/pharms2/testdata2.csv')
+dataset = dataset.drop(['WWTP.1'],axis=1)
+
+cols=['Risk_level','Risk_level_1','Risk_level_2']
+for col in cols:
+    dataset[col] = dataset[col].astype('category')
+
+X=dataset.drop(['Risk_level','Risk_level_1','Risk_level_2'],axis=1)
+Type=dataset.Risk_level_1
+
+X_train,X_test,y_train,y_test=train_test_split(X,Type,test_size=0.25,random_state=27,stratify=Type)
+
+
+X_train.fillna(X_train.median(),inplace=True)
+X_test.fillna(X_train.median(),inplace=True)
+
+skf = StratifiedKFold(n_splits=10)
+scorel = []
+for i in range(320,331,1):
+    rfc1 = BalancedRandomForestClassifier(n_estimators=i, n_jobs=-1, random_state=27,class_weight='balanced',sampling_strategy='not majority')
+    score = cross_val_score(rfc1, X_train, y_train, cv=skf,scoring='f1_macro').mean()
+    scorel.append(score)
+print(max(scorel),(scorel.index(max(scorel))))
+plt.figure(figsize=[20,5])
+plt.plot(range(320,331,1),scorel)
+plt.show()
+l=range(320,331,1)
+X_train = X_train.drop(['PerGDP','HDI'],axis=1)
+param_grid = {'max_depth':np.arange(1,31,5)} 
+rfc1 = BalancedRandomForestClassifier(n_estimators=321,random_state=27,n_jobs=-1,class_weight='balanced',sampling_strategy='not majority')  #这里注意321是找到的最佳n——estimators
+GS = GridSearchCV(rfc1,param_grid,cv=skf,scoring='f1_macro')
+GS.fit(X_train,y_train)
+GS.best_params_
+GS.best_score_
+param_grid = {'max_features':np.arange(5,19,1)} 
+rfc = BalancedRandomForestClassifier(n_estimators=321,random_state=27, max_depth=16,class_weight='balanced',sampling_strategy='not majority' )
+GS = GridSearchCV(rfc,param_grid,cv=skf,scoring='f1_macro')
+GS.fit(X_train,y_train)
+GS.best_params_
+GS.best_score_
+from matplotlib import pyplot as plt
+rfc = BalancedRandomForestClassifier(n_estimators=321,random_state=27, max_depth=16,max_features=15,class_weight='balanced',sampling_strategy='not majority' )
+rfc.fit(X_train,y_train)
+sorted_idx=rfc.feature_importances_.argsort()
+plt.barh(X_train.columns[sorted_idx],rfc.feature_importances_[sorted_idx])
+X_train=X_train.drop(['HDI1'],axis=1)
+param_grid={'min_samples_leaf':np.arange(1, 11, 1)}
+rfc = BalancedRandomForestClassifier(n_estimators=321,random_state=27,max_depth=16, class_weight='balanced',max_features=15,sampling_strategy='not majority' )
+GS = GridSearchCV(rfc,param_grid,cv=skf,scoring='f1_macro')
+GS.fit(X_train,y_train)
+GS.best_params_
+GS.best_score_
+param_grid={'min_samples_split':np.arange(2, 2+10, 1)}
+rfc = BalancedRandomForestClassifier(n_estimators=321,random_state=27,max_features=15, max_depth=16,class_weight='balanced',sampling_strategy='not majority',min_samples_leaf=1)
+GS = GridSearchCV(rfc,param_grid,cv=skf,scoring='f1_macro')
+GS.fit(X_train,y_train)
+GS.best_params_
+GS.best_score_
+param_grid = {'criterion':['gini', 'entropy']}
+rfc = BalancedRandomForestClassifier(n_estimators=321,random_state=27,max_features=15, max_depth=16,class_weight='balanced',sampling_strategy='not majority',min_samples_leaf=1)
+GS = GridSearchCV(rfc,param_grid,cv=skf,scoring='f1_macro')
+GS.fit(X_train,y_train)
+GS.best_params_
+GS.best_score_
+from matplotlib import pyplot as plt
+rfc = BalancedRandomForestClassifier(n_estimators=321,random_state=27,max_features=15, max_depth=16,class_weight='balanced',sampling_strategy='not majority',min_samples_leaf=1)
+rfc.fit(X_train,y_train)
+sorted_idx=rfc.feature_importances_.argsort()
+plt.barh(X_train.columns[sorted_idx],rfc.feature_importances_[sorted_idx])
+X_train = X_train.drop(['Resilience'],axis=1)
+param_grid = {'class_weight': ['balanced_subsample','balanced']}
+rfc = BalancedRandomForestClassifier(n_estimators=321,random_state=27,max_features=4, max_depth=16,min_samples_leaf=1,sampling_strategy='not majority')
+GS = GridSearchCV(rfc,param_grid,cv=skf,scoring='f1_macro')
+GS.fit(X_train,y_train)
+GS.best_params_
+GS.best_score_
+from matplotlib import pyplot as plt
+rfc = BalancedRandomForestClassifier(n_estimators=321,random_state=27,max_features=15, max_depth=16,class_weight='balanced',sampling_strategy='not majority',min_samples_leaf=1)
+rfc.fit(X_train,y_train)
+sorted_idx=rfc.feature_importances_.argsort()
+plt.barh(X_train.columns[sorted_idx],rfc.feature_importances_[sorted_idx])
+X_train = X_train.drop(['Adaptive_capacity'],axis=1)
+param_grid = {'class_weight': ['balanced']}
+rfc = BalancedRandomForestClassifier(n_estimators=321,random_state=27,max_features=4, max_depth=16,min_samples_leaf=1,sampling_strategy='not majority')
+GS = GridSearchCV(rfc,param_grid,cv=skf)
+GS.fit(X_train,y_train)
+GS.best_score_
+X_train, X_test, y_train, y_test = train_test_split(X.drop(['Resilience','HDI','HDI1','PerGDP','Adaptive_capacity'],axis=1), Type, test_size=0.25,random_state=27,stratify=Type) #划分训练集测试集
+X_train.fillna(X_train.median(),inplace=True) 
+X_test.fillna(X_train.median(),inplace=True) 
+
+rfc = BalancedRandomForestClassifier(n_estimators=321,random_state=27,max_features=4, max_depth=16,min_samples_leaf=1,sampling_strategy='not majority',class_weight='balanced_subsample')
+rfc_prime= rfc.fit(X_train,y_train)
+
+y_predict = rfc_prime.predict(X_test)
+y_fit = rfc_prime.predict(X_train)
+
+print(accuracy_score(y_test,y_predict))
+print(accuracy_score(y_train,y_fit))
+sorted_idx=rfc.feature_importances_.argsort()
+plt.barh(X_train.columns[sorted_idx],rfc_prime.feature_importances_[sorted_idx])
+feature_importance = pd.DataFrame(rfc_prime.feature_importances_, index = X.drop(['Resilience','HDI','HDI1','PerGDP','Adaptive_capacity'],axis=1).columns)
+feature_importance.to_csv('importance.csv',index=True)
+X=dataset.drop(['Risk_level','Risk_level_1','Risk_level_2'],axis=1)
+Type=dataset.Risk_level_1
+
+y = label_binarize(Type, classes=[0, 1, 2, 3])
+n_classes = y.shape[1]
+
+X_train, X_test, y_train, y_test = train_test_split(X.drop(['Resilience','HDI','HDI1','PerGDP','Adaptive_capacity'],axis=1), y, test_size=0.25,random_state=27,stratify=y)
+
+X_train.fillna(X_train.median(),inplace=True)
+X_test.fillna(X_train.median(),inplace=True)
+
+rfc_onevsall = OneVsRestClassifier(BalancedRandomForestClassifier(n_estimators=321,random_state=27,max_features=4, max_depth=16,min_samples_leaf=1,sampling_strategy='not majority',class_weight='balanced'))
+y_score = rfc_onevsall.fit(X_train, y_train).predict_proba(X_test) 
+
+fpr = {}
+tpr = {}
+roc_auc1 = {}
+for i in range(n_classes):
+    fpr[i], tpr[i], thresholds = roc_curve(y_test[:, i], y_score[:, i])
+    roc_auc1[i] = auc(fpr[i], tpr[i])
+
+fpr["micro"], tpr["micro"], _ = roc_curve(y_test.ravel(), y_score.ravel())
+roc_auc1["micro"] = auc(fpr["micro"], tpr["micro"])
+
+
+all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
+
+mean_tpr = np.zeros_like(all_fpr)
+for i in range(n_classes):
+    mean_tpr += interp(all_fpr, fpr[i], tpr[i])
+
+mean_tpr = mean_tpr/n_classes
+fpr["macro"] = all_fpr
+tpr["macro"] = mean_tpr
+roc_auc1["macro"] = auc(fpr["macro"], tpr["macro"])
+lw=2
+plt.figure()
+plt.plot(fpr["micro"], tpr["micro"],
+         label='micro-average ROC curve (area = {0:0.2f})'
+               ''.format(roc_auc1["micro"]),
+         color='deeppink', linestyle=':', linewidth=4)
+
+plt.plot(fpr["macro"], tpr["macro"],
+         label='macro-average ROC curve (area = {0:0.2f})'
+               ''.format(roc_auc1["macro"]),
+         color='navy', linestyle=':', linewidth=4)
+
+colors = cycle(['orange','yellow', 'mediumblue', 'cyan'])
+hash = ['norisk', 'lowrisk', 'moderaterisk', 'highrisk']
+for i, color in zip(range(n_classes), colors):
+    plt.plot(fpr[i], tpr[i], color=color, lw=lw,
+             label='ROC curve of class {0} (area = {1:0.2f})'
+             ''.format(hash[i], roc_auc1[i]))
+
+plt.plot([0, 1], [0, 1], 'k--', lw=lw)
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.rcParams['figure.figsize']=(25, 10)
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Some extension of Receiver operating characteristic to multi-class')
+plt.legend(loc="lower right")
+plt.tight_layout()
+plt.subplots_adjust(top=0.88)
+plt.savefig('AUCplt.png',bbox_inches='tight',dpi=1000)
+y = label_binarize(Type, classes=[0, 1, 2, 3])
+
+n_classes = y.shape[1]
+
+skf = StratifiedKFold(n_splits=10)
+lst_accu_stratified = []
+lst_accu = []
+rfc_onevsall = OneVsRestClassifier(BalancedRandomForestClassifier(n_estimators=321,random_state=27,max_features=4, max_depth=16,min_samples_leaf=1,sampling_strategy='not majority',class_weight='balanced'))
+
+X_train, X_test, y_train, y_test = train_test_split(X.drop(['Resilience','HDI','HDI1','PerGDP','Adaptive_capacity'],axis=1), Type, test_size=0.25,random_state=27,stratify=Type)
+
+X_train.fillna(X_train.median(),inplace=True)
+X_test.fillna(X_train.median(),inplace=True)
+AUC = []
+for train_index,test_index in skf.split(X_train,y_train):
+
+    X_train_fold, X_test_fold = X_train.iloc[train_index,:],X_train.iloc[test_index,:]
+    y_train_fold, y_test_fold = y_train.iloc[train_index],y_train.iloc[test_index]
+    y_train_fold = label_binarize(y_train_fold,classes=[0,1,2,3])
+    y_test_fold = label_binarize(y_test_fold,classes=[0,1,2,3])
+    y_score_cv = rfc_onevsall.fit(X_train_fold, y_train_fold).predict_proba(X_test_fold)
+    y_1 = rfc_onevsall.fit(X_train_fold, y_train_fold).predict(X_test_fold)
+fpr = {}
+    tpr = {}
+    roc_auc = {}
+    for i in range(n_classes):
+        fpr[i], tpr[i], thresholds = roc_curve(y_test_fold[:, i], y_score_cv[:, i])
+        roc_auc[i] = auc(fpr[i], tpr[i])
+
+        fpr["micro"], tpr["micro"], _ = roc_curve(y_test_fold.ravel(), y_score_cv.ravel())
+    roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+
+   all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
+    
+    mean_tpr = np.zeros_like(all_fpr)
+    for i in range(n_classes):
+        mean_tpr += interp(all_fpr, fpr[i], tpr[i])
+   
+    mean_tpr = mean_tpr/n_classes
+    fpr["macro"] = all_fpr
+    tpr["macro"] = mean_tpr
+    roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
+    
+    AUC.append(roc_auc)
+auc = {}
+for key in roc_auc.keys():
+    auc[key] = 0
+for j in AUC:
+    for key in roc_auc.keys():
+        auc[key]+=j[key]
+for key in roc_auc.keys():
+    auc[key] = auc[key]/len(AUC)
+
+print(auc['micro'])
+y = label_binarize(Type, classes=[0, 1, 2, 3])
+
+n_classes = y.shape[1]
+
+skf = StratifiedKFold(n_splits=10)
+lst_accu_stratified = []
+lst_accu = []
+rfc_onevsall = OneVsRestClassifier(BalancedRandomForestClassifier(n_estimators=321,random_state=27,max_features=4, max_depth=16,min_samples_leaf=1,sampling_strategy='not majority',class_weight='balanced'))
+
+X_train, X_test, y_train, y_test = train_test_split(X.drop(['Resilience','HDI','HDI1','PerGDP','Adaptive_capacity'],axis=1), Type, test_size=0.25,random_state=27,stratify=Type)
+
+X_train.fillna(X_train.median(),inplace=True)
+X_test.fillna(X_train.median(),inplace=True)
+
+print(len(y_train))
+for train_index,test_index in skf.split(X_train,y_train):
+
+    X_train_fold, X_test_fold = X_train.iloc[train_index,:],X_train.iloc[test_index,:]
+    y_train_fold, y_test_fold = y_train.iloc[train_index],y_train.iloc[test_index]
+    y_train_fold = label_binarize(y_train_fold,classes=[0,1,2,3])
+    y_test_fold = label_binarize(y_test_fold,classes=[0,1,2,3])
+    y_score_cv = rfc_onevsall.fit(X_train_fold, y_train_fold).predict_proba(X_test_fold) 
+    y_1 = rfc_onevsall.fit(X_train_fold, y_train_fold).predict(X_test_fold)
+BESTthres = []
+    for j in range(20): 
+        X_train_fold_1, X_val_fold_1,y_train_fold_1,y_val_fold_1 = train_test_split(X_train_fold,y_train_fold,test_size = 0.25, stratify = y_train_fold) 
+        y_score = rfc_onevsall.fit(X_train_fold_1, y_train_fold_1).predict_proba(X_val_fold_1)
+fpr = {}
+        tpr = {}
+        best_threshold = {}
+        best_index = {}
+        for i in range(n_classes):
+            fpr[i], tpr[i], thresholds = roc_curve(y_val_fold_1[:, i], y_score[:, i])
+            best_index[i] = np.argmax(tpr[i]-fpr[i])
+            best_threshold[i] = thresholds[best_index[i]]
+        BESTthres.append(best_threshold)
+    
+    best_threshold = {}
+    best_threshold[0] = 0
+    best_threshold[1] = 0
+    best_threshold[2] = 0
+    best_threshold[3] = 0
+
+    for thres in BESTthres:
+        for i in range(4):
+            best_threshold[i]+=thres[i]
+
+
+    for i in range(4):
+        best_threshold[i] = best_threshold[i]/len(BESTthres)
+    print(best_threshold) 
+    y_pre = []
+    for i in y_score_cv:
+        if(i[3]>=best_threshold[3]):
+            result = 3
+        elif(i[0]>=best_threshold[0]):
+            result = 0
+        elif(i[1]>=best_threshold[1]):
+            result = 1
+        elif(i[2]>=best_threshold[2]):
+            result = 2
+        else:
+            result = 0
+        y_pre.append(result)
+
+    y_pre = label_binarize(y_pre, classes=[0, 1, 2, 3])
+    lst_accu_stratified.append(balanced_accuracy_score(np.array(y_test_fold.argmax(axis=1)),np.array(y_pre.argmax(axis=1)))) 
+    lst_accu.append(balanced_accuracy_score(np.array(y_test_fold.argmax(axis=1)),np.array(y_1.argmax(axis=1)))) 
+print((np.mean(lst_accu_stratified)/np.mean(lst_accu)-1))
+y = label_binarize(Type, classes=[0, 1, 2, 3])
+
+n_classes = y.shape[1]
+
+X_train, X_test, y_train, y_test = train_test_split(X.drop(['Resilience','HDI','HDI1','PerGDP','Adaptive_capacity'],axis=1), y, test_size=0.25,random_state=27,stratify=y)
+
+X_train.fillna(X_train.median(),inplace=True)
+X_test.fillna(X_train.median(),inplace=True)
+
+rfc_onevsall = OneVsRestClassifier(BalancedRandomForestClassifier(n_estimators=321,random_state=27,max_features=4, max_depth=16,min_samples_leaf=1,sampling_strategy='not majority',class_weight='balanced'))
+y_score = rfc_onevsall.fit(X_train, y_train).predict_proba(X_train) 
+
+Bestthreshold = []
+for i in range(20):
+   
+    X_train_1, X_test_1, y_train_1, y_test_1 = train_test_split(X_train, y_train, test_size=0.25,stratify=y_train)
+
+    # handling missing data in the trainset
+    X_train.fillna(X_train.median(),inplace=True)
+    X_test.fillna(X_train.median(),inplace=True)
+ rfc_onevsall_1 = OneVsRestClassifier(BalancedRandomForestClassifier(n_estimators=321,random_state=27,max_features=4, max_depth=16,min_samples_leaf=1,sampling_strategy='not majority',class_weight='balanced'))
+    y_score = rfc_onevsall_1.fit(X_train_1, y_train_1).predict_proba(X_test_1) 
+
+    fpr = {}
+    tpr = {}
+    best_thresholdi = {}
+    best_index = {}
+    for i in range(n_classes):
+        fpr[i], tpr[i], thresholds = roc_curve(y_test_1[:, i], y_score[:, i])
+        best_index[i] = np.argmax(tpr[i]-fpr[i])
+        best_thresholdi[i] = thresholds[best_index[i]]
+    Bestthreshold.append(best_thresholdi)
+
+
+best_threshold = {}
+best_threshold[0] = 0
+best_threshold[1] = 0
+best_threshold[2] = 0
+best_threshold[3] = 0
+
+for thres in Bestthreshold:
+    for i in range(4):
+        best_threshold[i]+=thres[i]
+
+
+for i in range(4):
+    best_threshold[i] = best_threshold[i]/len(Bestthreshold)
+
+print(best_threshold)
+y_score_1 = rfc_onevsall.fit(X_train, y_train).predict_proba(X_train)
+y_pre = []
+for i in y_score_1:
+    if(i[3]>=best_threshold[3]):
+        result = 3
+    elif(i[0]>=best_threshold[0]):
+        result = 0
+    elif(i[1]>=best_threshold[1]):
+        result = 1             
+    elif(i[2]>=best_threshold[2]):
+        result = 2
+    else:
+        result = 0
+    y_pre.append(result)
+
+y_score_2 = rfc_onevsall.fit(X_train,y_train).predict_proba(X_test)
+y_pre_1 = []
+for i in y_score_2:
+    if(i[3]>=best_threshold[3]):
+        result = 3
+    elif(i[0]>=best_threshold[0]):
+        result = 0
+    elif(i[1]>=best_threshold[1]):
+        result = 1             
+    elif(i[2]>=best_threshold[2]):
+        result = 2
+    else:
+        result = 0
+    y_pre_1.append(result)
+    
+y_pre = label_binarize(y_pre, classes=[0, 1, 2, 3])
+y_pre_1 = label_binarize(y_pre_1, classes=[0, 1, 2, 3])
+y_1 = rfc_onevsall.fit(X_train, y_train).predict(X_test)
+print('Accuracy:')
+print(accuracy_score(np.array(y_train),np.array(y_pre)))
+print(accuracy_score(np.array(y_test),np.array(y_pre_1)))
+X=dataset.drop(['Risk_level','Risk_level_1','Risk_level_2'],axis=1)
+Type=dataset.Risk_level_1
+trainX = X.drop(['Resilience','HDI','HDI1','PerGDP','Adaptive_capacity'],axis=1)
+trainy = label_binarize(Type, classes=[0, 1, 2, 3]) 
+n_classes = y.shape[1] 
+
+trainX.fillna(trainX.median(),inplace=True)
+
+finalrfc = OneVsRestClassifier(BalancedRandomForestClassifier(n_estimators=321,random_state=27,max_features=4, max_depth=16,min_samples_leaf=1,sampling_strategy='not majority',class_weight='balanced'))
+y_score_pre = finalrfc.fit(trainX, Type).predict_proba(trainX)
+y = label_binarize(Type, classes=[0, 1, 2, 3])
+
+n_classes = y.shape[1]
+
+Bestthreshold = []
+for i in range(20):
+
+    X_train, X_test, y_train, y_test = train_test_split(trainX, trainy, test_size=0.25,stratify=trainy)
+
+    X_train.fillna(X_train.median(),inplace=True)
+    X_test.fillna(X_train.median(),inplace=True)
+
+    
