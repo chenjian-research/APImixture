@@ -95,14 +95,16 @@ GS.best_score_
 
 #final random forest model
 finalrfc = RandomForestClassifier(n_estimators=90,random_state=70,max_depth=9,min_samples_leaf=1,min_samples_split=2,max_features=10,criterion= 'gini')
+
 #shap analysis
 import shap
 shap.initjs()
 explainer=shap.TreeExplainer(finalrfc)
 shap_values = explainer.shap_values(X_train)
 shap.summary_plot(shap_values[:, :, 1], X_train)
-shap.summary_plot(shap_values[:, :, 1], X_train,plot_type='bar')
 shap.dependence_plot('precipitation',shap_values[:, :, 1], X_train,interaction_index=None)
 shap.dependence_plot('temperature',shap_values[:, :, 1], X_train,interaction_index=None)
-shap.dependence_plot('GDP',shap_values[:, :, 1], X_train,interaction_index=None)
-shap.dependence_plot('population',shap_values[:, :, 1], X_train,interaction_index=None)
+shap.dependence_plot('solar_radition ',shap_values[:, :, 1], X_train,interaction_index=None)
+shap.dependence_plot('watervaporpressure',shap_values[:, :, 1], X_train,interaction_index=None)
+shap.dependence_plot('windspeed',shap_values[:, :, 1], X_train,interaction_index=None)
+shap.dependence_plot('evapotranspiration',shap_values[:, :, 1], X_train,interaction_index=None)
