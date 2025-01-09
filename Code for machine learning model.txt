@@ -19,6 +19,7 @@ from sklearn.metrics import make_scorer
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import cross_validate, KFold
 from scipy import interp
+
 # read data
 dataset=pd.read_csv(r'D:\1work\1 PhD\RFPPCP\PPCPhuman.csv')
 # Splitting the dataset into the training set and test set
@@ -26,6 +27,7 @@ X=dataset.drop(['Risk_level','risklevel'],axis=1)
 y=dataset['risklevel']
 X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.25,random_state=90,stratify=y)
 skf = KFold(n_splits=10,shuffle=True, random_state=1412)
+
 # five candidate models
 from xgboost import XGBClassifier
 xgbcmodel=XGBClassifier()
@@ -47,7 +49,7 @@ print("\tRandomforst：",cross_val_score(rfc_model,X_train,y_train,cv=skf).mean(
 print("\tKNN：",cross_val_score(knn_model,X_train,y_train,cv=skf).mean())
 print("\tSVC：",cross_val_score(svc_model,X_train,y_train,cv=skf).mean())
 print("\tNN：",cross_val_score(NN_model,X_train,y_train,cv=skf).mean())
-#chose the random forest model
+#chose the random forest model as the final model
 
 scorel = []
 for i in range(20,500,1):
@@ -65,6 +67,7 @@ GS = GridSearchCV(rfc1,param_grid,cv=skf)
 GS.fit(X_train,y_train)
 GS.best_params_
 GS.best_score_
+
 param_grid={'min_samples_leaf':np.arange(1, 11, 1)}
 rfc = RandomForestClassifier(n_estimators=90,random_state=70,max_depth=9)
 GS = GridSearchCV(rfc,param_grid,cv=skf)
@@ -79,7 +82,7 @@ GS.fit(X_train,y_train)
 GS.best_params_
 GS.best_score_
 
-param_grid = {'max_features':np.arange(1,10,1)} 
+param_grid = {'max_features':np.arange(1,20,1)} 
 rfc = RandomForestClassifier(n_estimators=90,random_state=70,max_depth=9,min_samples_leaf=1,min_samples_split=2)
 GS = GridSearchCV(rfc,param_grid,cv=skf)
 GS.fit(X_train,y_train)
@@ -101,10 +104,11 @@ import shap
 shap.initjs()
 explainer=shap.TreeExplainer(finalrfc)
 shap_values = explainer.shap_values(X_train)
-shap.summary_plot(shap_values[:, :, 1], X_train)
-shap.dependence_plot('precipitation',shap_values[:, :, 1], X_train,interaction_index=None)
-shap.dependence_plot('temperature',shap_values[:, :, 1], X_train,interaction_index=None)
-shap.dependence_plot('solar_radition ',shap_values[:, :, 1], X_train,interaction_index=None)
-shap.dependence_plot('watervaporpressure',shap_values[:, :, 1], X_train,interaction_index=None)
-shap.dependence_plot('windspeed',shap_values[:, :, 1], X_train,interaction_index=None)
-shap.dependence_plot('evapotranspiration',shap_values[:, :, 1], X_train,interaction_index=None)
+shap.summary_plot(shap_values[1], X_train)
+shap.dependence_plot('precipitation',shap_values[1], X_train,interaction_index=None)
+shap.dependence_plot('temperature',shap_values[1], X_train,interaction_index=None)
+shap.dependence_plot('solar_radition ',shap_values[1], X_train,interaction_index=None)
+shap.dependence_plot('watervaporpressure',shap_values[1], X_train,interaction_index=None)
+shap.dependence_plot('windspeed',shap_values[1], X_train,interaction_index=None)
+shap.dependence_plot('evapotranspiration',shap_values[1], X_train,interaction_index=None)
+
