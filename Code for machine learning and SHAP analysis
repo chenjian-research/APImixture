@@ -1,0 +1,203 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.metrics import roc_curve, auc
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import label_binarize, LabelEncoder
+from sklearn.multiclass import OneVsRestClassifier 
+from sklearn.impute import SimpleImputer
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import confusion_matrix
+from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import balanced_accuracy_score
+from sklearn.metrics import f1_score
+from sklearn.metrics import confusion_matrix
+from sklearn.datasets import make_classification
+from sklearn.metrics import make_scorer
+from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import cross_validate, KFold
+from imblearn.over_sampling import SMOTE
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split, StratifiedKFold
+
+dataset=pd.read_csv(r'D:\1work\1 PhD\ML_pre\train\RQ.csv')
+X = dataset.drop('RQ', axis=1)
+X.fillna(0, inplace=True) 
+y = dataset['RQ']
+feature_names = X.columns.tolist()
+scaler = StandardScaler()
+X= scaler.fit_transform(X)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=103, stratify=y)
+smote = SMOTE(sampling_strategy='auto', random_state=190)
+X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
+X_train = pd.DataFrame(X_train_resampled, columns=feature_names)
+y_train = y_train_resampled
+X_test = pd.DataFrame(X_test, columns=feature_names)
+skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=1412)
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix
+import xgboost as xgb
+from sklearn.preprocessing import StandardScaler
+
+def evaluate_model(model, X_train, y_train, X_test, y_test):
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    y_pred_proba = model.predict_proba(X_test)[:, 1] if hasattr(model, "predict_proba") else None
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred)
+    recall = recall_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    roc_auc = roc_auc_score(y_test, y_pred_proba) if y_pred_proba is not None else None
+    conf_matrix = confusion_matrix(y_test, y_pred)
+    sensitivity = recall
+    specificity = conf_matrix[0, 0] / (conf_matrix[0, 0] + conf_matrix[0, 1])
+
+    print("\nModel Performance:")
+    print(f"Accuracy: {accuracy:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall (Sensitivity): {sensitivity:.4f}")
+    print(f"Specificity: {specificity:.4f}")
+    if roc_auc is not None:
+        print(f"ROC-AUC: {roc_auc:.4f}")
+    return {
+        "accuracy": accuracy,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "roc_auc": roc_auc,
+        "conf_matrix": conf_matrix
+    }
+
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# XGBoost
+print("\n=== XGBoost ===")
+finxgb = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss')
+xgb_results = evaluate_model(finxgb, X_train, y_train, X_test, y_test)
+
+# RF
+print("\n=== Random Forest ===")
+rf_model = RandomForestClassifier(n_estimators=100, max_depth=None, random_state=80)
+rf_results = evaluate_model(rf_model, X_train, y_train, X_test, y_test)
+
+# SVM
+print("\n=== SVM ===")
+svm_model = SVC(kernel='rbf', C=1, probability=True, random_state=80)
+svm_results = evaluate_model(svm_model, X_train_scaled, y_train, X_test_scaled, y_test)
+
+# KNN
+print("\n=== KNN ===")
+knn_model = KNeighborsClassifier(n_neighbors=5)
+knn_results = evaluate_model(knn_model, X_train_scaled, y_train, X_test_scaled, y_test)
+
+# Neural Network
+print("\n=== Neural Network ===")
+nn_model = MLPClassifier(hidden_layer_sizes=(100,), activation='relu', solver='adam', max_iter=200, random_state=80)
+nn_results = evaluate_model(nn_model, X_train_scaled, y_train, X_test_scaled, y_test)
+
+results_summary = {
+    "XGBoost": xgb_results,
+    "Random Forest": rf_results,
+    "SVM": svm_results,
+    "KNN": knn_results,
+    "Neural Network": nn_results
+}
+
+print("\n=== Summary of Model Performance ===")
+for model_name, metrics in results_summary.items():
+    print(f"\n=== {model_name} ===")
+    for metric, value in metrics.items():
+        if metric == "conf_matrix":
+            print(f"{metric}:\n{value}")
+        else:
+            print(f"{metric}: {value:.4f}")
+
+xgb_model = XGBClassifier(use_label_encoder=False, eval_metric='logloss',random_state=80)
+param_grid = {
+    'n_estimators':range(5,400),
+    'max_depth': list(range(3, 15, 1)),
+    'learning_rate': np.arange(0, 0.5, 0.01),
+    'subsample': [0.7,0.8, 0.9,1.0],
+    'colsample_bytree': [0.8, 0.9,1.0],
+    'scale_pos_weight': [0.8, 0.9,1.0],
+    'min_child_weight': [0.8, 0.9,1.0],
+    'gamma': [0, 0.1],
+}
+
+grid_search = GridSearchCV(estimator=xgb_model, param_grid=param_grid, cv=10, scoring='auc')
+grid_search.fit(X_train, y_train)
+print("Best Parameters: ", grid_search.best_params_)
+print("Best Score: ", grid_search.best_score_)
+
+finxgb = xgb.XGBClassifier(n_estimators=40, learning_rate=0.29, max_depth=9, random_state=80,
+                           gamma=0, subsample=1,
+                           colsample_bytree=1, min_child_weight=1,
+                           use_label_encoder=False, eval_metric='logloss')
+
+finxgb.fit(X_train, y_train)
+y_train_pred = finxgb.predict(X_train)
+y_train_pred_proba = finxgb.predict_proba(X_train)[:, 1]
+train_accuracy = accuracy_score(y_train, y_train_pred)
+train_precision = precision_score(y_train, y_train_pred)
+train_recall = recall_score(y_train, y_train_pred)
+train_f1 = f1_score(y_train, y_train_pred)
+train_roc_auc = roc_auc_score(y_train, y_train_pred_proba)
+train_conf_matrix = confusion_matrix(y_train, y_train_pred)
+train_sensitivity = train_recall
+train_specificity = train_conf_matrix[0, 0] / (train_conf_matrix[0, 0] + train_conf_matrix[0, 1])
+y_pred = finxgb.predict(X_test)
+y_pred_proba = finxgb.predict_proba(X_test)[:, 1]
+test_accuracy = accuracy_score(y_test, y_pred)
+test_precision = precision_score(y_test, y_pred)
+test_recall = recall_score(y_test, y_pred)
+test_f1 = f1_score(y_test, y_pred)
+test_roc_auc = roc_auc_score(y_test, y_pred_proba)
+test_conf_matrix = confusion_matrix(y_test, y_pred)
+test_sensitivity = test_recall
+test_specificity = test_conf_matrix[0, 0] / (test_conf_matrix[0, 0] + test_conf_matrix[0, 1])
+print("Training set performance:")
+print(f"Accuracy: {train_accuracy:.4f}")
+print(f"Sensitivity: {train_sensitivity:.4f}")
+print(f"Specificity: {train_specificity:.4f}")
+print(f"ROC-AUC: {train_roc_auc:.4f}")
+print("\nTest set performance:")
+print(f"Accuracy: {test_accuracy:.4f}")
+print(f"Sensitivity: {test_sensitivity:.4f}")
+print(f"Specificity: {test_specificity:.4f}")
+print(f"ROC-AUC: {test_roc_auc:.4f}")
+
+import shap
+import matplotlib.pyplot as plt
+explainer = shap.TreeExplainer(finxgb)
+shap_values = explainer.shap_values(X_train)
+if isinstance(shap_values, list):
+    shap_values_class_1 = shap_values[1]
+else:
+    shap_values_class_1 = shap_values
+
+fig, ax = plt.subplots(figsize=(3, 7))
+shap.summary_plot(shap_values_class_1, X_train, feature_names=feature_names, max_display=23, show=False)
+fig.set_size_inches(3, 7)
+plt.subplots_adjust(left=0.1) 
+ax = plt.gca()
+ax.tick_params(axis='y', labelsize=16)  
+x_tick_labels = ax.get_xticklabels()
+for label in x_tick_labels:
+    label.set_fontsize(16)  
+
+y_tick_labels = ax.get_yticklabels()
+for label in y_tick_labels:
+    label.set_fontsize(16) 
+ax.set_xlabel('SHAP value', fontsize=16)
+x_label = ax.set_xlabel(ax.get_xlabel(), fontsize=16)
+y_label = ax.set_ylabel(ax.get_ylabel(), fontsize=16)
+plt.show()
